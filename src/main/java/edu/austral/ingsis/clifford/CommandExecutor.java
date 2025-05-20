@@ -1,23 +1,23 @@
 package edu.austral.ingsis.clifford;
 
-import edu.austral.ingsis.clifford.command.CdCommand;
-import edu.austral.ingsis.clifford.command.Command;
-import edu.austral.ingsis.clifford.command.LsCommand;
-import edu.austral.ingsis.clifford.command.MkdirCommand;
-import edu.austral.ingsis.clifford.command.PwdCommand;
-import edu.austral.ingsis.clifford.command.RmCommand;
-import edu.austral.ingsis.clifford.command.TouchCommand;
+import edu.austral.ingsis.clifford.command.*;
+import edu.austral.ingsis.clifford.results.CommandResult;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class CommandExecutor {
-  private final FileSystem fileSystem = new FileSystem();
+  private FileSystem fileSystem;
   private final Map<String, Command> commands = new HashMap<>();
 
   public CommandExecutor() {
-    // Registrar todos los comandos disponibles
+    this.fileSystem = new FileSystem();
+    registerDefaultCommands();
+  }
+
+  private void registerDefaultCommands() {
     registerCommand("ls", new LsCommand());
     registerCommand("cd", new CdCommand());
     registerCommand("touch", new TouchCommand());
@@ -44,14 +44,28 @@ public class CommandExecutor {
       return "Empty input";
     }
 
-    String[] args = input.split(" ");
-    String commandName = args[0];
+    String[] parts = input.split(" ", 2);
+    String commandName = parts[0];
 
     Command command = commands.get(commandName);
     if (command == null) {
       return "Command '" + commandName + "' does not exist";
     }
 
-    return command.execute(fileSystem, args);
+    String[] args = parts.length > 1 ? parseArgs(parts[1]) : new String[0];
+
+    CommandResult result = command.execute(args, fileSystem);
+
+    // Update the file system if needed
+    result.newFileSystem().ifPresent(fs -> this.fileSystem = fs);
+
+    return result.message();
+  }
+
+  private String[] parseArgs(String argsStr) {
+    if (argsStr == null || argsStr.trim().isEmpty()) {
+      return new String[0];
+    }
+    return argsStr.trim().split("\\s+");
   }
 }

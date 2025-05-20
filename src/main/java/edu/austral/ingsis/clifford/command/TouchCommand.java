@@ -1,30 +1,39 @@
 package edu.austral.ingsis.clifford.command;
 
 import edu.austral.ingsis.clifford.Directory;
-import edu.austral.ingsis.clifford.File;
 import edu.austral.ingsis.clifford.FileSystem;
+import edu.austral.ingsis.clifford.results.CommandResult;
+import edu.austral.ingsis.clifford.results.ErrorCommandResult;
+import edu.austral.ingsis.clifford.results.SuccessCommandResult;
 
-public class TouchCommand implements Command {
+import java.util.Optional;
+
+public class TouchCommand extends AbstractCommand {
   @Override
-  public String execute(FileSystem fileSystem, String[] args) {
-    if (args.length < 2) {
-      return "No file name provided";
-    }
+  protected boolean validateArgs(String[] args) {
+    return args != null && args.length == 1 && args[0] != null && !args[0].isEmpty();
+  }
 
-    if (args.length > 2) {
-      return "File name cannot include spaces";
-    }
+  @Override
+  protected String getUsageMessage() {
+    return "No file name provided";
+  }
 
-    String fileName = args[1];
+  @Override
+  protected CommandResult executeValidated(String[] args, FileSystem fileSystem) {
+    String fileName = args[0];
     Directory current = fileSystem.getCurrentDirectory();
 
     if (!current.isValidName(fileName)) {
-      return fileName + " is an invalid file name";
+      return new ErrorCommandResult(fileName + " is an invalid file name");
     }
 
-    File newFile = new File(fileName);
-    current.addFile(newFile);
+    if (current.findFile(fileName) != null || current.findDirectory(fileName) != null) {
+      return new ErrorCommandResult("Element already exists: " + fileName);
+    }
 
-    return "'" + fileName + "' file created";
+    // Create file with empty content
+    FileSystem newFileSystem = fileSystem.addFile(fileName, "");
+    return new SuccessCommandResult("'" + fileName + "' file created", Optional.of(newFileSystem));
   }
 }

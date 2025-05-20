@@ -1,10 +1,24 @@
 package edu.austral.ingsis.clifford.command;
 
 import edu.austral.ingsis.clifford.FileSystem;
+import edu.austral.ingsis.clifford.results.CommandResult;
+import edu.austral.ingsis.clifford.results.SuccessCommandResult;
 
-public class PwdCommand implements Command {
+import java.util.Optional;
+
+public class PwdCommand extends AbstractCommand {
   @Override
-  public String execute(FileSystem fileSystem, String[] args) {
-    return fileSystem.getCurrentPath();
+  protected boolean validateArgs(String[] args) {
+    return args == null || args.length == 0;
+  }
+
+  @Override
+  protected String getUsageMessage() {
+    return "pwd takes no arguments";
+  }
+
+  @Override
+  protected CommandResult executeValidated(String[] args, FileSystem fileSystem) {
+    return new SuccessCommandResult(fileSystem.getCurrentPath(), Optional.empty());
   }
 }

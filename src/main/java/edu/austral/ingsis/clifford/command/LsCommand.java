@@ -2,25 +2,41 @@ package edu.austral.ingsis.clifford.command;
 
 import edu.austral.ingsis.clifford.Directory;
 import edu.austral.ingsis.clifford.FileSystem;
-import java.util.List;
+import edu.austral.ingsis.clifford.results.CommandResult;
+import edu.austral.ingsis.clifford.results.ErrorCommandResult;
+import edu.austral.ingsis.clifford.results.SuccessCommandResult;
 
-public class LsCommand implements Command {
+import java.util.List;
+import java.util.Optional;
+
+public class LsCommand extends AbstractCommand {
   @Override
-  public String execute(FileSystem fileSystem, String[] args) {
+  protected boolean validateArgs(String[] args) {
+    return args == null || args.length <= 1;
+  }
+
+  @Override
+  protected String getUsageMessage() {
+    return "Usage: ls [--ord=asc|--ord=desc]";
+  }
+
+  @Override
+  protected CommandResult executeValidated(String[] args, FileSystem fileSystem) {
     Directory current = fileSystem.getCurrentDirectory();
     String order = null;
 
-    if (args.length > 1) {
-      if (args[1].equals("--ord=asc")) {
+    if (args != null && args.length == 1) {
+      if (args[0].equals("--ord=asc")) {
         order = "asc";
-      } else if (args[1].equals("--ord=desc")) {
+      } else if (args[0].equals("--ord=desc")) {
         order = "desc";
       } else {
-        return "Unknown flag";
+        return new ErrorCommandResult("Unknown flag");
       }
     }
 
     List<String> elements = current.listElements(order);
-    return !elements.isEmpty() ? String.join(" ", elements) : "";
+    String result = !elements.isEmpty() ? String.join(" ", elements) : "";
+    return new SuccessCommandResult(result, Optional.empty());
   }
 }

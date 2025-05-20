@@ -2,28 +2,37 @@ package edu.austral.ingsis.clifford.command;
 
 import edu.austral.ingsis.clifford.Directory;
 import edu.austral.ingsis.clifford.FileSystem;
+import edu.austral.ingsis.clifford.results.CommandResult;
+import edu.austral.ingsis.clifford.results.ErrorCommandResult;
+import edu.austral.ingsis.clifford.results.SuccessCommandResult;
 
-public class MkdirCommand implements Command {
+import java.util.Optional;
+
+public class MkdirCommand extends AbstractCommand {
   @Override
-  public String execute(FileSystem fileSystem, String[] args) {
-    if (args.length < 2) {
-      return "No directory name provided";
-    }
+  protected boolean validateArgs(String[] args) {
+    return args != null && args.length == 1 && args[0] != null && !args[0].isEmpty();
+  }
 
-    if (args.length > 2) {
-      return "Directory name cannot include spaces";
-    }
+  @Override
+  protected String getUsageMessage() {
+    return "No directory name provided";
+  }
 
-    String dirName = args[1];
+  @Override
+  protected CommandResult executeValidated(String[] args, FileSystem fileSystem) {
+    String dirName = args[0];
     Directory current = fileSystem.getCurrentDirectory();
 
     if (!current.isValidName(dirName)) {
-      return dirName + " is an invalid directory name";
+      return new ErrorCommandResult(dirName + " is an invalid directory name");
     }
 
-    Directory newDir = new Directory(dirName, current);
-    current.addDirectory(newDir);
+    if (current.findDirectory(dirName) != null || current.findFile(dirName) != null) {
+      return new ErrorCommandResult("Element already exists: " + dirName);
+    }
 
-    return "'" + dirName + "' directory created";
+    FileSystem newFileSystem = fileSystem.addDirectory(dirName);
+    return new SuccessCommandResult("'" + dirName + "' directory created", Optional.of(newFileSystem));
   }
 }

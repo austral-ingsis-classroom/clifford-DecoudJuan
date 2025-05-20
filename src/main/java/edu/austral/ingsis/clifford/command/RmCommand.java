@@ -3,47 +3,63 @@ package edu.austral.ingsis.clifford.command;
 import edu.austral.ingsis.clifford.Directory;
 import edu.austral.ingsis.clifford.File;
 import edu.austral.ingsis.clifford.FileSystem;
+import edu.austral.ingsis.clifford.results.CommandResult;
+import edu.austral.ingsis.clifford.results.ErrorCommandResult;
+import edu.austral.ingsis.clifford.results.SuccessCommandResult;
 
-public class RmCommand implements Command {
+import java.util.Optional;
+
+public class RmCommand extends AbstractCommand {
   @Override
-  public String execute(FileSystem fileSystem, String[] args) {
-    if (args.length < 2) {
-      return "No file name provided";
+  protected boolean validateArgs(String[] args) {
+    if (args == null || args.length == 0) {
+      return false;
     }
 
+    // Check for recursive flag
+    if (args.length > 1 && args[0].equals("--recursive")) {
+      return args.length == 2;
+    }
+
+    return args.length == 1;
+  }
+
+  @Override
+  protected String getUsageMessage() {
+    return "Usage: rm [--recursive] <name>";
+  }
+
+  @Override
+  protected CommandResult executeValidated(String[] args, FileSystem fileSystem) {
     Directory current = fileSystem.getCurrentDirectory();
 
-    // Comprobar si es un comando recursivo para eliminar directorios
-    if (args[1].equals("--recursive")) {
-      if (args.length < 3) {
-        return "No directory name provided";
-      }
-
-      String dirName = args[2];
+    // Check if it's a recursive command to remove directories
+    if (args.length > 1 && args[0].equals("--recursive")) {
+      String dirName = args[1];
       Directory dirToRemove = current.findDirectory(dirName);
 
       if (dirToRemove == null) {
-        return "Directory: '" + dirName + "' does not exist in this directory";
+        return new ErrorCommandResult("Directory: '" + dirName + "' does not exist in this directory");
       }
 
-      current.removeDirectory(dirToRemove);
-      return "'" + dirName + "' removed";
+      FileSystem newFileSystem = fileSystem.removeElement(dirName);
+      return new SuccessCommandResult("'" + dirName + "' removed", Optional.of(newFileSystem));
     } else {
-      // Eliminar archivo
-      String fileName = args[1];
-      File fileToRemove = current.findFile(fileName);
+      // Remove file or non-recursive directory
+      String elementName = args[0];
+      File fileToRemove = current.findFile(elementName);
 
       if (fileToRemove == null) {
-        // Comprobar si es un directorio
-        Directory dirToRemove = current.findDirectory(fileName);
+        // Check if it's a directory
+        Directory dirToRemove = current.findDirectory(elementName);
         if (dirToRemove != null) {
-          return "cannot remove '" + fileName + "', is a directory";
+          return new ErrorCommandResult("cannot remove '" + elementName + "', is a directory");
         }
-        return "File: '" + fileName + "' does not exist in this directory";
+        return new ErrorCommandResult("File: '" + elementName + "' does not exist in this directory");
       }
 
-      current.removeFile(fileToRemove);
-      return "'" + fileName + "' removed";
+      FileSystem newFileSystem = fileSystem.removeElement(elementName);
+      return new SuccessCommandResult("'" + elementName + "' removed", Optional.of(newFileSystem));
     }
   }
 }

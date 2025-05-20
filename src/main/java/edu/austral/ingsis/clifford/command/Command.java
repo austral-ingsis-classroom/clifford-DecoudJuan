@@ -1,7 +1,8 @@
 package edu.austral.ingsis.clifford.command;
 
 import edu.austral.ingsis.clifford.FileSystem;
+import edu.austral.ingsis.clifford.results.CommandResult;
 
 public interface Command {
-  String execute(FileSystem fileSystem, String[] args);
+  CommandResult execute(String[] args, FileSystem fileSystem);
 }

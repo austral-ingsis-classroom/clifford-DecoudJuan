@@ -1,95 +1,121 @@
 package edu.austral.ingsis.clifford;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
 public class Directory extends FileSystemElement {
   private final Directory parent;
-  private final List<Directory> directories = new ArrayList<>();
-  private final List<File> files = new ArrayList<>();
-  private final List<String> all = new ArrayList<>();
+  private final List<FileSystemElement> children;
 
   public Directory(String name, Directory parent) {
     super(name);
     this.parent = parent;
+    this.children = Collections.emptyList();
+  }
+
+  // Constructor privado para inmutabilidad
+  private Directory(String name, Directory parent, List<FileSystemElement> children) {
+    super(name);
+    this.parent = parent;
+    this.children = List.copyOf(children);
   }
 
   public Directory getParent() {
     return parent;
   }
 
-  public List<Directory> getDirectories() {
-    return directories;
+  public List<FileSystemElement> getChildren() {
+    return children;
   }
 
-  public List<File> getFiles() {
-    return files;
+  public Directory addElement(FileSystemElement element) {
+    if (element == null || !isValidName(element.getName())) {
+      return this;
+    }
+
+    // Verificar si ya existe un elemento con el mismo nombre
+    for (FileSystemElement child : children) {
+      if (child.getName().equals(element.getName())) {
+        return this;
+      }
+    }
+
+    List<FileSystemElement> newChildren = new ArrayList<>(children);
+    newChildren.add(element);
+
+    return new Directory(this.name, this.parent, newChildren);
   }
 
-  public List<String> getAllElements() {
-    return all;
-  }
+  public Directory removeElement(String elementName) {
+    if (elementName == null) {
+      return this;
+    }
 
-  public void addFile(File file) {
-    files.add(file);
-    all.add(file.getName());
-  }
+    List<FileSystemElement> newChildren = new ArrayList<>();
+    boolean removed = false;
 
-  public void addDirectory(Directory directory) {
-    directories.add(directory);
-    all.add(directory.getName());
-  }
+    for (FileSystemElement element : children) {
+      if (!element.getName().equals(elementName)) {
+        newChildren.add(element);
+      } else {
+        removed = true;
+      }
+    }
 
-  public void removeFile(File file) {
-    files.remove(file);
-    all.remove(file.getName());
-  }
+    if (!removed) {
+      return this;
+    }
 
-  public void removeDirectory(Directory directory) {
-    directories.remove(directory);
-    all.remove(directory.getName());
+    return new Directory(this.name, this.parent, newChildren);
   }
 
   public Directory findDirectory(String name) {
-    for (Directory dir : directories) {
-      if (dir.getName().equals(name)) {
-        return dir;
+    if (name == null) {
+      return null;
+    }
+
+    for (FileSystemElement element : children) {
+      if (element instanceof Directory && element.getName().equals(name)) {
+        return (Directory) element;
       }
     }
     return null;
   }
 
   public File findFile(String name) {
-    for (File file : files) {
-      if (file.getName().equals(name)) {
-        return file;
+    if (name == null) {
+      return null;
+    }
+
+    for (FileSystemElement element : children) {
+      if (element instanceof File && element.getName().equals(name)) {
+        return (File) element;
       }
     }
     return null;
   }
 
   public List<String> listElements(String order) {
-    List<String> result = new ArrayList<>();
+    List<String> elementNames = new ArrayList<>();
 
-    for (String element : all) {
-      if (!result.contains(element)) {
-        result.add(element);
-      }
+    for (FileSystemElement element : children) {
+      elementNames.add(element.getName());
     }
 
     if (order != null) {
       if (order.equals("asc")) {
-        result.sort(Comparator.naturalOrder());
+        elementNames.sort(Comparator.naturalOrder());
       } else if (order.equals("desc")) {
-        result.sort(Comparator.reverseOrder());
+        elementNames.sort(Comparator.reverseOrder());
       }
     }
 
-    return result;
+    return Collections.unmodifiableList(elementNames);
   }
 
   public boolean isValidName(String name) {
-    return !name.contains("/") && !name.contains(" ");
+    return name != null && !name.contains("/") && !name.contains(" ");
   }
 }

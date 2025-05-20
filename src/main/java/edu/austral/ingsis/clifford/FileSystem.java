@@ -5,25 +5,33 @@ import java.util.Collections;
 import java.util.List;
 
 public class FileSystem {
-  private final Directory root = new Directory("/", null);
-  private Directory current = root;
+  private final Directory root;
+  private final Directory current;
 
   public FileSystem() {
-    // Inicializa el sistema de archivos con el directorio raíz
+    this.root = new Directory("/", null);
+    this.current = this.root;
+  }
+
+  private FileSystem(Directory root, Directory current) {
+    this.root = root;
+    this.current = current;
   }
 
   public Directory getCurrentDirectory() {
     return current;
   }
 
+
   public Directory getRoot() {
     return root;
   }
 
-  public void changeDirectory(Directory dir) {
-    if (dir != null) {
-      current = dir;
+  public FileSystem changeDirectory(Directory dir) {
+    if (dir == null) {
+      return this;
     }
+    return new FileSystem(this.root, dir);
   }
 
   public String getCurrentPath() {
@@ -39,8 +47,12 @@ public class FileSystem {
     return "/" + String.join("/", path);
   }
 
-  // Método auxiliar para navegar a un directorio a partir de una ruta
-  public Directory navigateTo(String path) {
+  public Dir
+  ectory navigateTo(String path) {
+    if (path == null || path.isEmpty()) {
+      return current;
+    }
+
     if (path.equals(".")) {
       return current;
     } else if (path.equals("..")) {
@@ -52,18 +64,25 @@ public class FileSystem {
 
     if (path.startsWith("/")) {
       startDir = root;
-      components = path.substring(1).split("/");
+      path = path.substring(1);
     } else {
       startDir = current;
-      components = path.split("/");
     }
 
+    components = path.isEmpty() ? new String[0] : path.split("/");
     return navigateRecursive(startDir, components, 0);
   }
 
   private Directory navigateRecursive(Directory currentDir, String[] components, int index) {
-    if (index >= components.length || components[index].isEmpty()) {
+    if (currentDir == null || index >= components.length || components[index].isEmpty()) {
       return currentDir;
+    }
+
+    if (components[index].equals("..")) {
+      return navigateRecursive(currentDir.getParent() != null ? currentDir.getParent() : currentDir,
+          components, index + 1);
+    } else if (components[index].equals(".")) {
+      return navigateRecursive(currentDir, components, index + 1);
     }
 
     Directory nextDir = currentDir.findDirectory(components[index]);
@@ -76,5 +95,56 @@ public class FileSystem {
     } else {
       return navigateRecursive(nextDir, components, index + 1);
     }
+  }
+
+  public FileSystem addFile(String name, String content) {
+    if (name == null || !current.isValidName(name)) {
+      return this;
+    }
+
+    // Verificar si ya existe
+    if (current.findFile(name) != null || current.findDirectory(name) != null) {
+      return this;
+    }
+
+    File file = new File(name, content);
+    Directory updatedCurrent = current.addElement(file);
+
+    return updateFileSystemTree(updatedCurrent);
+  }
+
+  public FileSystem addDirectory(String name) {
+    if (name == null || !current.isValidName(name)) {
+      return this;
+    }
+
+    // Verificar si ya existe
+    if (current.findFile(name) != null || current.findDirectory(name) != null) {
+      return this;
+    }
+
+    Directory newDir = new Directory(name, current);
+    Directory updatedCurrent = current.addElement(newDir);
+
+    return updateFileSystemTree(updatedCurrent);
+  }
+
+  public FileSystem removeElement(String name) {
+    if (name == null) {
+      return this;
+    }
+
+    Directory updatedCurrent = current.removeElement(name);
+    return updateFileSystemTree(updatedCurrent);
+  }
+
+  // Actualizar el árbol del sistema de archivos
+  private FileSystem updateFileSystemTree(Directory updatedDirectory) {
+    // Si es el directorio raíz
+    if (current.getParent() == null) {
+      return new FileSystem(updatedDirectory, updatedDirectory);
+    }
+
+    return new FileSystem(this.root, updatedDirectory);
   }
 }

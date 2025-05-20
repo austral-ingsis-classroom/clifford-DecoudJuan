@@ -3,48 +3,79 @@ package edu.austral.ingsis.clifford.command;
 import edu.austral.ingsis.clifford.Directory;
 import edu.austral.ingsis.clifford.File;
 import edu.austral.ingsis.clifford.FileSystem;
+import edu.austral.ingsis.clifford.results.CommandResult;
+import edu.austral.ingsis.clifford.results.ErrorCommandResult;
+import edu.austral.ingsis.clifford.results.SuccessCommandResult;
 
-public class CdCommand implements Command {
+import java.util.Optional;
+
+public class CdCommand extends AbstractCommand {
   @Override
-  public String execute(FileSystem fileSystem, String[] args) {
-    if (args.length < 2) {
-      return "You must specify the directory of destination";
-    }
+  protected boolean validateArgs(String[] args) {
+    return args != null && args.length == 1;
+  }
 
-    String path = args[1];
+  @Override
+  protected String getUsageMessage() {
+    return "You must specify the directory of destination";
+  }
+
+  @Override
+  protected CommandResult executeValidated(String[] args, FileSystem fileSystem) {
+    String path = args[0];
     Directory current = fileSystem.getCurrentDirectory();
 
-    // Caso especial para "."
+    // Special case for "."
     if (path.equals(".")) {
-      return "moved to directory '" + current.getName() + "'";
+      return new SuccessCommandResult("moved to directory '" + current.getName() + "'", Optional.empty());
     }
 
-    // Caso especial para ".."
+    // Special case for ".."
     if (path.equals("..")) {
       if (current.getParent() != null) {
-        fileSystem.changeDirectory(current.getParent());
-        return "moved to directory '" + current.getParent().getName() + "'";
+        FileSystem newFileSystem = fileSystem.changeDirectory(current.getParent());
+        return new SuccessCommandResult("moved to directory '" + current.getParent().getName() + "'",
+            Optional.of(newFileSystem));
       }
-      return "moved to directory '" + current.getName() + "'";
+      return new SuccessCommandResult("moved to directory '" + current.getName() + "'", Optional.empty());
     }
 
-    // Navegación a un directorio
+    // Navigate to a directory
     Directory targetDir = fileSystem.navigateTo(path);
 
     if (targetDir == null) {
-      // Verificar si es un archivo en vez de un directorio
+      // Check if it's a file instead of a directory
+      String finalComponent = path;
       if (path.contains("/")) {
-        return "Route " + path + " does not exist";
-      } else {
-        File file = current.findFile(path);
-        if (file != null) {
-          return "The name given is a file, not a directory";
+        // Extract the last component of the path
+        String[] pathComponents = path.split("/");
+        finalComponent = pathComponents[pathComponents.length - 1];
+
+        // Try to navigate to the parent directory
+        String parentPath = path.substring(0, path.lastIndexOf('/'));
+        Directory parentDir = parentPath.isEmpty() ? current : fileSystem.navigateTo(parentPath);
+
+        if (parentDir != null) {
+          // Check if the last component is a file
+          File file = parentDir.findFile(finalComponent);
+          if (file != null) {
+            return new ErrorCommandResult("The name given is a file, not a directory");
+          }
         }
-        return "'" + path + "' directory does not exist";
+
+        return new ErrorCommandResult("Route " + path + " does not exist");
+      } else {
+        File file = current.findFile(finalComponent);
+        if (file != null) {
+          return new ErrorCommandResult("The name given is a file, not a directory");
+        }
+        return new ErrorCommandResult("'" + finalComponent + "' directory does not exist");
       }
     }
 
-    fileSystem.changeDirectory(targetDir);
-    return "moved to directory '" + targetDir.getName() + "'";
+    FileSystem newFileSystem = fileSystem.changeDirectory(targetDir);
+    return new SuccessCommandResult("moved to directory '" + targetDir.getName() + "'",
+        Optional.of(newFileSystem));
   }
+
 }
